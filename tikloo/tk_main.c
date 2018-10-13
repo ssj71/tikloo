@@ -245,8 +245,8 @@ void tk_growprimarytable(tk_t tk)
     tmpt.redraw =     (uint16_t*)calloc(sz+1,sizeof(float));
 
     tmpt.draw_f = (void(**)(cairo_t*,float,float,void*,void*))calloc(sz,sizeof(&tk_drawnothing));
-    tmpt.cb_f = (void(**)(tk_t,const PuglEvent*,uint16_t))calloc(sz,sizeof(&tk_callback));
-    tmpt.callback_f = (void(**)(tk_t,const PuglEvent*,uint16_t))calloc(sz,sizeof(&tk_callback));
+    tmpt.cb_f = (tk_callback_f*)calloc(sz,sizeof(&tk_callback));
+    tmpt.callback_f = (tk_callback_f*)calloc(sz,sizeof(&tk_callback));
 
     if(tk->tablesize)
     {
@@ -268,8 +268,8 @@ void tk_growprimarytable(tk_t tk)
         memcpy(tmpt.redraw,    tk->redraw,    osz*sizeof(uint16_t)+1);
 
         memcpy(tmpt.draw_f,    tk->draw_f,    osz*sizeof(void(*)(cairo_t*,float,float,void*,void*)));
-        memcpy(tmpt.cb_f,      tk->cb_f,      osz*sizeof(void(*)(tk_t,PuglEvent*,uint16_t)));
-        memcpy(tmpt.callback_f,tk->callback_f,osz*sizeof(void(*)(tk_t,PuglEvent*,uint16_t)));
+        memcpy(tmpt.cb_f,      tk->cb_f,      osz*sizeof(tk_callback_f));
+        memcpy(tmpt.callback_f,tk->callback_f,osz*sizeof(tk_callback_f));
     }
 
     tk->x =      tmpt.x;

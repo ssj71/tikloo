@@ -111,6 +111,9 @@ typedef enum
     TK_CURSOR_MOVED = 0x4
 }TK_BITMASKS;
 
+//typedef void (*tk_callback_f)(struct tk_table*, const PuglEvent*, uint16_t);
+typedef void (*tk_callback_f)(struct tk_table*, const PuglEvent*, uint16_t);
+
 typedef struct tk_table
 {
     //////primary table, each index correlates across arrays
@@ -129,9 +132,9 @@ typedef struct tk_table
     //draw function
     void (**draw_f)(cairo_t*, float, float, void*, void*); //surface, w, h, cache, value
     //built in callback, must not be 0
-    void (**cb_f)(struct tk_table*, const PuglEvent*, uint16_t); 
+    tk_callback_f *cb_f;
     //user callback, runs after the cb_f
-    void (**callback_f)(struct tk_table*, const PuglEvent*, uint16_t);
+    tk_callback_f *callback_f;
     //item specific data of any type, take care
     void **extras;
     //opaque data set by user
