@@ -823,7 +823,7 @@ uint16_t tk_addaWidget(tk_t tk, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 // Dial_Stuff
-float tk_dialvalue(tk_t tk, uint16_t n)
+float tk_getdial(tk_t tk, uint16_t n)
 {
     float *v = (float*)tk->value[n];
     tk_dial_stuff* tkd = (tk_dial_stuff*)tk->extras[n];
