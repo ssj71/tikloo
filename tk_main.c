@@ -47,7 +47,7 @@
 
 
 // Core_Functions
-tk_t tk_gimmeaTiKloo(uint16_t w, uint16_t h, char* title)
+tk_t tk_gimmeaTiKloo(uint16_t w, uint16_t h, char* title, intptr_t parentWindow)
 {
     tk_t tk = (tk_t)malloc(sizeof(tk_table));
 
@@ -120,6 +120,7 @@ tk_t tk_gimmeaTiKloo(uint16_t w, uint16_t h, char* title)
     puglSetEventFunc(view, tk_callback);
     puglSetHandle(view, tk);
     puglInitContextType(view, PUGL_CAIRO);//PUGL_CAIRO_GL
+    if(parentWindow)puglInitWindowParent(view,(PuglNativeWindow)parentWindow);
     tk->view = view; 
     
     //all set!
@@ -157,7 +158,14 @@ void tk_rollit(tk_t tk)
         } 
 }
 
-//for plugins
+//for plugins, returns window ID
+intptr_t tk_embedit(tk_t tk)
+{
+    puglShowWindow(tk->view);
+    tk_draweverything(tk);
+    return puglGetNativeWindow(tk->view);
+}
+
 void tk_idle(tk_t tk)
 {
     puglProcessEvents(tk->view); 
