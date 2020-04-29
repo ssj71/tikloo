@@ -29,8 +29,6 @@
 #endif
 
 //forward declarations are all in tk_test or tk.h
-//static void tk_callback (PuglView* view, const PuglEvent* event);
-//void tk_nocallback(tk_t tk, const PuglEvent* e, uint16_t n);
 
 ////// Table of Contents:
 // Core_Functions
@@ -209,7 +207,7 @@ void tk_cleanup(tk_t tk)
     free(tk->tkt.cluster_map);
 
     free(tk->tkt.strchange); free(tk->tkt.memlen); free(tk->tkt.n); 
-    free(tk->tkt.cursor); free(tk->tkt.select);
+    free(tk->tkt.scale); free(tk->tkt.cursor); free(tk->tkt.select);
     free(tk->tkt.ln); free(tk->tkt.col); free(tk->tkt.brklen);
     free(tk->tkt.glyph_count);
     free(tk->tkt.glyph_end);
@@ -331,8 +329,9 @@ void tk_resizeeverything(tk_t tk,float w, float h)
     const float sy1 = h/tk->h0;
     const float sm0 = sx0<sy0?sx0:sy0;//old small dim
     const float sm1 = sx1<sy1?sx1:sy1;//new small dim
-    const float smx = (sm1/sm0)/sx;//min scale factor div. scale x
-    const float smy = (sm1/sm0)/sy;
+    const float smr = sm1/sm0;
+    const float smx = smr/sx;//min scale factor div. scale x
+    const float smy = smr/sy;
 
     if(tk->props[0]&TK_HOLD_RATIO)
     {
@@ -387,15 +386,15 @@ void tk_resizeeverything(tk_t tk,float w, float h)
     tk->y[0] = dy;
 
     //scale text
-    tk->tkt.scale = sm1;
     for(i=0;i<tk->tkt.nitems;i++)
     {
+        tk->tkt.scale[i] *= smr;
         n = tk->tkt.n[i];
         tw = tk->w[n];
         th = tk->h[n];
         //TODO: unless they've changed ratio they don't actually need a re-layout
         //TODO: do anything if it doesn't fit?
-        tk_textlayout(tk->cr,&tk->tkt,i,&tw,&th,tk->props[n]);
+        //tk_textlayout(tk->cr,&tk->tkt,i,&tw,&th,tk->props[n]);
     }
 }
 
@@ -1019,10 +1018,12 @@ tk_font_stuff* tk_gimmeaFont(tk_t tk, const uint8_t* font, uint32_t fsize, uint3
     FT_Face     face;      /* handle to face object */
     FT_Error    error;
     //cairo stuff
-    cairo_font_extents_t extents;
+    cairo_font_extents_t cextents;
+    cairo_font_face_t* crface;
     //harfbuzz stuff
     hb_buffer_t *buf;
     hb_font_t *hbfont;
+    //hb_font_extents_t extents;
 
     //now font setup stuff 
     error = FT_Init_FreeType( &library );
@@ -1062,10 +1063,12 @@ tk_font_stuff* tk_gimmeaFont(tk_t tk, const uint8_t* font, uint32_t fsize, uint3
     } 
 
     //CAIRO
-    cairo_set_font_face(tk->cr, cairo_ft_font_face_create_for_ft_face(face,0));
+    //TODO: need to set the font right before rendering else cairo just shows last one
+    //here we just set the font to figure out the baseline
+    crface = cairo_ft_font_face_create_for_ft_face(face,0);
+    cairo_set_font_face(tk->cr, crface);
     cairo_set_font_size(tk->cr, fontsize);
-
-    cairo_font_extents(tk->cr,&extents);
+    cairo_font_extents(tk->cr,&cextents);
 
     //harfbuzz
     buf = hb_buffer_create();
@@ -1079,12 +1082,20 @@ tk_font_stuff* tk_gimmeaFont(tk_t tk, const uint8_t* font, uint32_t fsize, uint3
     hb_font_set_scale(hbfont, fontsize*64, fontsize*64);
     hb_ft_font_set_funcs(hbfont);
 
+    //hb_font_get_v_extents(hbfont,&extents);
+    //hb_glyph_extents_t gext;
+    //hb_font_get_glyph_extents(hbfont,'.',&gext);
+
     //the buffer will be loaded with text and shaped when its time to render
 
     tkf->library = library;
     tkf->face = face;
     tkf->fontsize = fontsize;
-    tkf->base = extents.ascent;
+    tkf->crface = crface;
+    tkf->base = cextents.ascent;
+    //fprintf(stderr,"extents %i %i %i\n",extents.ascender,extents.descender, extents.line_gap);
+    //fprintf(stderr,"gextents %i %i\n",gext.y_bearing,gext.height);
+    //fprintf(stderr,"cextents %f\n",cextents.ascent);
     tkf->buf = buf;
     tkf->hbfont = hbfont;
 
@@ -1100,7 +1111,7 @@ bool tk_textlayout(cairo_t* cr, tk_text_table* tkt, uint16_t n, uint16_t *w, uin
     bool fit;
     uint16_t i,j,size,str_index,lastwhite,*tmp;
     const int margin = 2;
-    float x,y,xmax,xstart,ostart;
+    float fw,fh,x,y,xmax,xstart,ostart;
     tk_font_stuff* tkf = tkt->tkf[n];
 
     hb_glyph_info_t *glyph_info;
@@ -1118,9 +1129,9 @@ bool tk_textlayout(cairo_t* cr, tk_text_table* tkt, uint16_t n, uint16_t *w, uin
        h = tmp;
     }
 
-    *w /= tkt->scale;
-    *w -= margin;//leave space for RHS margin
-    *h /= tkt->scale;
+    fw = *w/tkt->scale[n];
+    fw -= margin;//leave space for RHS margin
+    fh = *h/tkt->scale[n];
 
     size = tkt->tkf[n]->fontsize;
     //TODO: there is no strchange when finding tip location or window ratio change
@@ -1182,7 +1193,7 @@ bool tk_textlayout(cairo_t* cr, tk_text_table* tkt, uint16_t n, uint16_t *w, uin
             }
         } 
 
-        if(glyph_pos[i+1]-xstart+margin > *w)
+        if(glyph_pos[i+1]-xstart+margin > fw)
         {
             if(props&TK_TEXT_WRAP)
             {//go back to last whitespace put the rest on a newline
@@ -1231,27 +1242,28 @@ bool tk_textlayout(cairo_t* cr, tk_text_table* tkt, uint16_t n, uint16_t *w, uin
     y += size-tkf->base;
 
     fit = true;
-    if(xmax > *w)
+    if(xmax > fw)
         fit = false;
-    if(y > *h)
+    if(y > fh)
         fit = false; 
     //TODO: show what you can at least
     if(!fit)
-    fprintf(stderr, "doesn't fit! %f>%i or %f>%i  %s\n",xmax,*w,y,*h,tkt->str[n]);
+        fprintf(stderr, "doesn't fit! %f>%f or %f>%f  %s\n",xmax,fw,y,fh,tkt->str[n]);
 
     if(fit && props&TK_TEXT_CENTER)
     {//center
-        x = (*w-xmax-margin)/2.0;
-        y = (*h-y)/2.0;
+        x = (fw-xmax-margin)/2.0;
+        y = (fh-y)/2.0;
         for (i = 0; i <= glyph_count; i++)
         {
             glyphs[i].x += x;
             glyphs[i].y += y;
         }
     }
+    //fprintf(stderr, "layout %i, %f %f -> %f %f (scl %f)\n", n, fw, fh, x, y, tkt->scale[n]);
 
-    *w = (xmax+margin)*tkt->scale;
-    *h = y*tkt->scale;
+    *w = (xmax+margin)*tkt->scale[n];
+    *h = y*tkt->scale[n];
 
     if(props&TK_TEXT_VERTICAL)
     {
@@ -1288,6 +1300,7 @@ void tk_growtexttable(tk_text_table* tkt)
     tmpt.strchange = (bool*)calloc(sz,sizeof(bool));
     tmpt.memlen =   (uint16_t*)calloc(sz,sizeof(uint16_t));
     tmpt.n =        (uint16_t*)calloc(sz,sizeof(uint16_t));
+    tmpt.scale =    (float*)calloc(sz,sizeof(float));
     tmpt.cursor =   (uint16_t*)calloc(sz,sizeof(uint16_t));
     tmpt.select =   (uint16_t*)calloc(sz,sizeof(uint16_t));
     tmpt.ln =       (uint16_t*)calloc(sz,sizeof(uint16_t));
@@ -1309,6 +1322,7 @@ void tk_growtexttable(tk_text_table* tkt)
         memcpy(tmpt.strchange,tkt->strchange,osz*sizeof(bool));
         memcpy(tmpt.memlen,   tkt->memlen,   osz*sizeof(uint16_t));
         memcpy(tmpt.n,        tkt->n,        osz*sizeof(uint16_t));
+        memcpy(tmpt.scale,    tkt->scale,    osz*sizeof(float));
         memcpy(tmpt.cursor,   tkt->cursor,   osz*sizeof(uint16_t));
         memcpy(tmpt.select,   tkt->select,   osz*sizeof(uint16_t));
         memcpy(tmpt.ln,       tkt->ln,       osz*sizeof(uint16_t));
@@ -1328,6 +1342,7 @@ void tk_growtexttable(tk_text_table* tkt)
     tkt->strchange = tmpt.strchange;
     tkt->memlen = tmpt.memlen;
     tkt->n = tmpt.n;
+    tkt->scale = tmpt.scale;
     tkt->cursor = tmpt.cursor;
     tkt->select = tmpt.select;
     tkt->ln = tmpt.ln;
@@ -1355,6 +1370,7 @@ uint16_t tk_addaText(tk_t tk, uint16_t x, uint16_t y, uint16_t w, uint16_t h, tk
     uint16_t s = tk->tkt.nitems++;
     uint16_t w2 = w;
     uint16_t h2 = h;
+    float sclw,sclh;
     tk_text_table* tkt = &tk->tkt;
 
     tk_text_stuff* tkts = (tk_text_stuff*)malloc(sizeof(tk_text_stuff));
@@ -1378,11 +1394,16 @@ uint16_t tk_addaText(tk_t tk, uint16_t x, uint16_t y, uint16_t w, uint16_t h, tk
         }
     }
     tkt->tkf[s] = font;
-    tkt->scale = 1;
     tkt->strchange[s] = true;
     tkt->ln = 0;
+    tkt->scale[s] = 1;
     tk_textlayout(tk->cr,tkt,s,&w2,&h2,0);
-    //TODO: what if w and h don't fit right out the gate?
+    if(w)
+    { //skip if tooltip
+        sclw = w/w2;
+        sclh = h/h2;
+        tkt->scale[s] = sclw<sclh?sclw:sclh;
+    }
 
     tk->draw_f[n] = tk_drawtext;
     tkts->tkt = tkt;
@@ -1409,8 +1430,8 @@ uint16_t tk_addaVerticalText(tk_t tk, uint16_t x, uint16_t y, uint16_t w, uint16
 uint16_t tk_gettextchar(tk_text_table* tkt, uint16_t n, uint16_t x, uint16_t y)
 {
     uint16_t i,j,end;
-    x /= tkt->scale;
-    y /= tkt->scale;
+    x /= tkt->scale[n];
+    y /= tkt->scale[n];
     if(y>2) y -= 2;
     else y = 0;
     j=0;
@@ -1554,12 +1575,12 @@ void tk_gettextcursor(void* valp, int *x, int *y, int *sx, int *sy)
         for(j=i;j<tkt->glyph_count[n] && tkt->cluster_map[n][j]<(tkt->cursor[n]+tkt->select[n]);j++);
         deltax = tkt->glyph_pos[n][j] - tkt->glyph_pos[n][j-1]; //selection always goes to end of character
         j--;
-        *sx = (tkt->glyphs[n][j].x + deltax + 0)*tkt->scale;
-        *sy = (tkt->glyphs[n][j].y - tkt->tkf[n]->base + 2)*tkt->scale;
+        *sx = (tkt->glyphs[n][j].x + deltax + 0)*tkt->scale[n];
+        *sy = (tkt->glyphs[n][j].y - tkt->tkf[n]->base + 2)*tkt->scale[n];
         deltax = 0;
     }
-    *x = (tkt->glyphs[n][i].x + deltax - 2)*tkt->scale;
-    *y = (tkt->glyphs[n][i].y - tkt->tkf[n]->base)*tkt->scale;
+    *x = (tkt->glyphs[n][i].x + deltax - 2)*tkt->scale[n];
+    *y = (tkt->glyphs[n][i].y - tkt->tkf[n]->base)*tkt->scale[n];
 }
 
 void tk_cursorcallback(tk_t tk, const PuglEvent* event, uint16_t n)

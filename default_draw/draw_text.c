@@ -12,13 +12,16 @@ void tk_drawtextcolor(cairo_t *cr, float w, float h, void* valp, float* line, fl
     int n = tkts->n;
 
     //TODO: cache drawing?
-    w /= tkt->scale;
-    h /= tkt->scale;
+    w /= tkt->scale[n];
+    h /= tkt->scale[n];
     if(!w || !h)
         return;
     tkt->strchange[n] = false;
     cairo_save( cr );
-    cairo_scale(cr,tkt->scale,tkt->scale);
+    cairo_scale(cr,tkt->scale[n],tkt->scale[n]);
+
+    cairo_set_font_face(cr, tkt->tkf[n]->crface);
+    cairo_set_font_size(cr, tkt->tkf[n]->fontsize);
     //cairo_translate(cr, 0, tkt->tkf[n]->base);//start at foot of line
 
     cairo_glyph_path(cr, tkt->glyphs[n], tkt->glyph_end[n]);
@@ -90,7 +93,7 @@ void tk_drawtextentry(cairo_t *cr, float w, float h, void* cache, void* valp)
     int x,y,sx,sy;
 
     tk_gettextcursor(valp,&x,&y,&sx,&sy);
-    x += 2*tkt->scale; //offset for margin
+    x += 2*tkt->scale[n]; //offset for margin
     //draw bg/text if necessary
     if(tkt->strchange[n] || !(tkt->cursorstate&TK_CURSOR_CHANGED))
     {//string has changed OR we got resized or something
@@ -107,9 +110,9 @@ void tk_drawtextentry(cairo_t *cr, float w, float h, void* cache, void* valp)
             cairo_set_line_width(cr, 1);
             cairo_new_path(cr);
             cairo_move_to(cr, x, y);
-            cairo_line_to(cr, sx, y);//sy+tkt->tkf[n]->fontsize*tkt->scale);
-            cairo_line_to(cr, sx, sy+tkt->tkf[n]->fontsize*tkt->scale);
-            cairo_line_to(cr, x, sy+tkt->tkf[n]->fontsize*tkt->scale); //TODO: handle multiple lines (y,h)
+            cairo_line_to(cr, sx, y);//sy+tkt->tkf[n]->fontsize*tkt->scale[n]);
+            cairo_line_to(cr, sx, sy+tkt->tkf[n]->fontsize*tkt->scale[n]);
+            cairo_line_to(cr, x, sy+tkt->tkf[n]->fontsize*tkt->scale[n]); //TODO: handle multiple lines (y,h)
             cairo_close_path(cr);
             cairo_set_tolerance(cr, 0.1);
             cairo_fill(cr);
@@ -126,7 +129,7 @@ void tk_drawtextentry(cairo_t *cr, float w, float h, void* cache, void* valp)
             cairo_set_line_width(cr, 2);
             cairo_new_path(cr);
             cairo_move_to(cr, x, y);
-            cairo_line_to(cr, x, y+tkt->tkf[n]->fontsize*tkt->scale);
+            cairo_line_to(cr, x, y+tkt->tkf[n]->fontsize*tkt->scale[n]);
             cairo_set_tolerance(cr, 0.1);
             cairo_stroke(cr);
             cairo_restore( cr ) ;
@@ -139,7 +142,7 @@ void tk_drawtextentry(cairo_t *cr, float w, float h, void* cache, void* valp)
         cairo_set_line_width(cr, 2);
         cairo_new_path(cr);
         cairo_move_to(cr, x, y);
-        cairo_line_to(cr, x, y+tkt->tkf[n]->fontsize*tkt->scale);
+        cairo_line_to(cr, x, y+tkt->tkf[n]->fontsize*tkt->scale[n]);
         cairo_set_tolerance(cr, 0.1);
         cairo_stroke(cr);
         cairo_restore( cr ) ;

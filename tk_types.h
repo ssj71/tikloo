@@ -28,6 +28,7 @@ typedef struct tk_font_stuff
     FT_Face face;
     hb_buffer_t *buf;
     hb_font_t *hbfont;
+    cairo_font_face_t *crface;
 }tk_font_stuff;
 
 typedef struct tk_text_table
@@ -37,6 +38,7 @@ typedef struct tk_text_table
     bool* strchange;//flag that string has changed
     uint16_t* memlen;//allocated size of str (if 0 then == streln(str));
     uint16_t* n;//item in main table
+    float* scale;//factor text is scaled
     uint16_t* cursor;//cursor location in string
     uint16_t* select;//selection length
     uint16_t* ln;//viewport line
@@ -52,7 +54,6 @@ typedef struct tk_text_table
     uint16_t* glyph_end;//number of glyphs to draw
 
     ////// text global
-    float scale;//factor text is scaled
     uint8_t cursorstate;//
     uint16_t cursortimer;//index in timer array of cursor timer
     uint16_t nitems,tablesize;//table stats
