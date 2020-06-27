@@ -316,7 +316,7 @@ void tk_growprimarytable(tk_t tk)
 
 void tk_resizeeverything(tk_t tk,float w, float h)
 {
-    uint16_t i,n,tw,th;
+    uint16_t i,n;//,tw,th;
     float sx,sy, dx,dy;
 
     const float x0 = tk->x[0];
@@ -390,8 +390,8 @@ void tk_resizeeverything(tk_t tk,float w, float h)
     {
         tk->tkt.scale[i] *= smr;
         n = tk->tkt.n[i];
-        tw = tk->w[n];
-        th = tk->h[n];
+        //tw = tk->w[n];
+        //th = tk->h[n];
         //TODO: unless they've changed ratio they don't actually need a re-layout
         //TODO: do anything if it doesn't fit?
         //tk_textlayout(tk->cr,&tk->tkt,i,&tw,&th,tk->props[n]);
@@ -574,16 +574,16 @@ void tk_callback (PuglView* view, const PuglEvent* event)
         tk->quit = 1;
         break;
     case PUGL_KEY_PRESS:
-        fprintf(stderr, "Key %u (char %u) press (%s)%s\n",
-                event->key.keycode, event->key.character, event->key.utf8,
-                event->key.filter ? " (filtered)" : "");
+        //fprintf(stderr, "Key %u (char %u) press (%s)%s\n",
+        //        event->key.keycode, event->key.character, event->key.utf8,
+        //        event->key.filter ? " (filtered)" : "");
         if(tk->focus)
             tk->cb_f[tk->focus](tk,event,tk->focus);
         break;
     case PUGL_KEY_RELEASE:
-        fprintf(stderr, "Key %u (char %u) release (%s)%s\n",
-                event->key.keycode, event->key.character, event->key.utf8,
-                event->key.filter ? " (filtered)" : "");
+        //fprintf(stderr, "Key %u (char %u) release (%s)%s\n",
+        //        event->key.keycode, event->key.character, event->key.utf8,
+        //        event->key.filter ? " (filtered)" : "");
         break;
     case PUGL_MOTION_NOTIFY:
         if(tk->drag)
