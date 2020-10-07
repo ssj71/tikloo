@@ -1250,10 +1250,12 @@ bool tk_textlayout(cairo_t* cr, tk_text_table* tkt, uint16_t n, uint16_t *w, uin
     if(!fit)
         fprintf(stderr, "doesn't fit! %f>%f or %f>%f  %s\n",xmax,fw,y,fh,tkt->str[n]);
 
-    if(fit && props&TK_TEXT_CENTER)
+    if(props&TK_TEXT_CENTER)
     {//center
         x = (fw-xmax-margin)/2.0;
         y = (fh-y)/2.0;
+        x = x<0?0:x;
+        y = y<0?0:y;
         for (i = 0; i <= glyph_count; i++)
         {
             glyphs[i].x += x;
@@ -1732,8 +1734,9 @@ uint16_t tk_addaTextButton(tk_t tk, uint16_t x, uint16_t y, uint16_t w, uint16_t
     uint16_t n;
     n = tk_addaButton(tk,x,y,w,h,val);
     tk->cb_f[n] = tk_textbuttoncallback;
-    n = tk_addaText(tk, x, y, w, h, 0,str);
+    n = tk_addaText(tk, x, y, w, h, 0,"_");
     tk->props[n] |= TK_TEXT_CENTER;
+    tk_settext(tk, n, str); //set text now to get centered
     return n-1; //return the button index 
 }
 
